@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./trip_mate.db}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/data
+    depends_on:
+      - redis
+    networks:
+      - trip_mate_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - trip_mate_network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trip_mate_network
+    restart: unless-stopped
+
+  # Optional: PostgreSQL for production
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=trip_mate
+  #     - POSTGRES_USER=trip_mate_user
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trip_mate_password}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - trip_mate_network
+  #   restart: unless-stopped
+
+volumes:
+  backend_data:
+  redis_data:
+  # postgres_data:
+
+networks:
+  trip_mate_network:
+    driver: bridge
